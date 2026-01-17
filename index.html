@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TubeHub</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #000;
+            --secondary-color: #fff;
+            --accent-color: #888;
+            --bg-color: #000;
+            --text-color: #fff;
+            --sidebar-width: 250px;
+            --header-height: 60px;
+            --transition-speed: 0.3s;
+        }
+
+        [data-theme="light"] {
+            --primary-color: #fff;
+            --secondary-color: #000;
+            --accent-color: #555;
+            --bg-color: #fff;
+            --text-color: #000;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color var(--transition-speed), color var(--transition-speed);
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            height: var(--header-height);
+            background-color: var(--primary-color);
+            color: var(--secondary-color);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+        }
+
+        .logo i {
+            color: #f00;
+        }
+
+        .search-container {
+            display: flex;
+            align-items: center;
+            max-width: 600px;
+            width: 50%;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 15px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--accent-color);
+            border-radius: 20px 0 0 20px;
+            outline: none;
+        }
+
+        .search-btn {
+            padding: 10px 20px;
+            background-color: var(--accent-color);
+            color: var(--secondary-color);
+            border: 1px solid var(--accent-color);
+            border-left: none;
+            border-radius: 0 20px 20px 0;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .search-btn:hover {
+            background-color: #777;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .theme-toggle, .sidebar-toggle {
+            background: none;
+            border: none;
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+
+        .theme-toggle:hover, .sidebar-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: var(--header-height);
+            left: 0;
+            width: var(--sidebar-width);
+            height: calc(100vh - var(--header-height));
+            background-color: var(--primary-color);
+            color: var(--secondary-color);
+            padding: 20px 0;
+            transform: translateX(-100%);
+            transition: transform var(--transition-speed) ease-in-out;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.open {
+            transform: translateX(0);
+        }
+
+        .sidebar-menu {
+            list-style: none;
+        }
+
+        .sidebar-item {
+            padding: 15px 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .sidebar-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-item i {
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-top: var(--header-height);
+            padding: 20px;
+            transition: margin-left var(--transition-speed);
+        }
+
+        .sidebar-open .main-content {
+            margin-left: var(--sidebar-width);
+        }
+
+        .page-title {
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            border-bottom: 1px solid var(--accent-color);
+            padding-bottom: 10px;
+        }
+
+        /* Video Grid */
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .video-card {
+            background-color: var(--primary-color);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+        }
+
+        .video-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        .video-thumbnail {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            background-color: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--secondary-color);
+            font-size: 3rem;
+        }
+
+        .video-info {
+            padding: 15px;
+        }
+
+        .video-title {
+            font-weight: 700;
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }
+
+        .video-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: var(--accent-color);
+        }
+
+        /* Video Player */
+        .video-player-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity var(--transition-speed);
+        }
+
+        .video-player-container.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .video-player {
+            width: 90%;
+            max-width: 1000px;
+            background-color: var(--primary-color);
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .video-player video {
+            width: 100%;
+            display: block;
+        }
+
+        .player-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+            background-color: var(--primary-color);
+        }
+
+        .control-left, .control-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .player-btn {
+            background: none;
+            border: none;
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .player-btn:hover {
+            color: var(--accent-color);
+        }
+
+        .close-player {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .video-title-player {
+            padding: 0 15px 15px;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        /* Loading Animation */
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            transition: opacity 0.5s, visibility 0.5s;
+        }
+
+        .loading.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid var(--accent-color);
+            border-top: 5px solid var(--secondary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background-color: var(--primary-color);
+            color: var(--secondary-color);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: transform 0.3s, opacity 0.3s;
+            z-index: 1001;
+        }
+
+        .notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* Live Indicator */
+        .live-indicator {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            background-color: #f00;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            animation: pulse 2s infinite;
+            z-index: 1001;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+            }
+            
+            .sidebar-open .main-content {
+                margin-left: 0;
+            }
+            
+            .search-container {
+                width: 40%;
+            }
+            
+            .video-grid {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            }
+            
+            .video-player {
+                width: 95%;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .header {
+                padding: 0 10px;
+            }
+            
+            .logo span {
+                display: none;
+            }
+            
+            .search-container {
+                width: auto;
+                flex-grow: 1;
+                margin: 0 10px;
+            }
+            
+            .video-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .live-indicator {
+                bottom: 70px;
+            }
+        }
+        .hub {
+            background-color: orange;
+            padding:2px; border-radius:5px;}
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            <span>Tube</span><span class="hub">Hub</span>
+        </div>
+        
+        <div class="search-container">
+            <input type="text" class="search-input" id="searchInput" placeholder="Cari video...">
+            <button class="search-btn" id="searchBtn">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+        
+        <div class="header-actions">
+            <button class="theme-toggle" id="themeToggle">
+                <i class="fas fa-moon"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+        <h1 class="page-title" id="pageTitle">Video Terpopuler</h1>
+        
+        <div class="video-grid" id="videoGrid">
+            <!-- Video cards akan dimuat di sini -->
+        </div>
+    </main>
+
+    <!-- Video Player -->
+    <div class="video-player-container" id="videoPlayerContainer">
+        <div class="video-player">
+            <button class="close-player" id="closePlayer">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <video id="mainVideo" controls>
+                <!-- Video akan dimuat di sini -->
+            </video>
+            
+            <h3 class="video-title-player" id="videoPlayerTitle"></h3>
+            
+            <div class="player-controls">
+                <div class="control-left">
+                    <button class="player-btn" id="playPauseBtn">
+                        <i class="fas fa-pause"></i>
+                    </button>
+                    <button class="player-btn" id="volumeBtn">
+                        <i class="fas fa-volume-up"></i>
+                    </button>
+                    <span id="currentTime">0:00</span> / <span id="duration">0:00</span>
+                </div>
+                
+                <div class="control-right">
+                    <button class="player-btn" id="fullscreenBtn">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                    <button class="player-btn" id="likeBtn">
+                        <i class="far fa-thumbs-up"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Data video dari Jumpshare (contoh)
+        const videoData = [
+            {
+                id: 1,
+                title: "00",
+                thumbnail: "video",
+                duration: "00:00",
+                views: "0",
+                uploadDate: "1 hari lalu",
+                videoUrl: "https://files.catbox.moe/o6mei2.mp4",
+                likes: 2450
+            },
+            {
+                id: 2,
+                title: "01",
+                thumbnail: "video",
+                duration: "00:00",
+                views: "0",
+                uploadDate: "1 hari lalu",
+                videoUrl: "https://files.catbox.moe/o6mei2.mp4",
+                likes: 2450
+            },{
+                id: 3,
+                title: "02",
+                thumbnail: "video",
+                duration: "00:00",
+                views: "0",
+                uploadDate: "1 hari lalu",
+                videoUrl: "https://files.catbox.moe/o6mei2.mp4",
+                likes: 2450
+            },{
+                id: 4,
+                title: "03",
+                thumbnail: "video",
+                duration: "00:00",
+                views: "0",
+                uploadDate: "1 hari lalu",
+                videoUrl: "https://files.catbox.moe/o6mei2.mp4",
+                likes: 2450
+            },{
+                id: 5,
+                title: "04",
+                thumbnail: "video",
+                duration: "00:00",
+                views: "0",
+                uploadDate: "1 hari lalu",
+                videoUrl: "https://files.catbox.moe/o6mei2.mp4",
+                likes: 2450
+            },{
+                id: 6,
+                title: "05",
+                thumbnail: "video",
+                duration: "00:00",
+                views: "0",
+                uploadDate: "1 hari lalu",
+                videoUrl: "https://files.catbox.moe/o6mei2.mp4",
+                likes: 2450
+            }
+        ];
+
+        // Simulasi data video trending
+        const trendingVideos = [...videoData].sort((a, b) => b.views - a.views);
+
+        // DOM Elements
+        const loadingScreen = document.getElementById('loading');
+        const themeToggle = document.getElementById('themeToggle');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const videoGrid = document.getElementById('videoGrid');
+        const pageTitle = document.getElementById('pageTitle');
+        const videoPlayerContainer = document.getElementById('videoPlayerContainer');
+        const mainVideo = document.getElementById('mainVideo');
+        const closePlayer = document.getElementById('closePlayer');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const volumeBtn = document.getElementById('volumeBtn');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const likeBtn = document.getElementById('likeBtn');
+        const currentTimeEl = document.getElementById('currentTime');
+        const durationEl = document.getElementById('duration');
+        const videoPlayerTitle = document.getElementById('videoPlayerTitle');
+        const notification = document.getElementById('notification');
+        const liveIndicator = document.getElementById('liveIndicator');
+        const sidebarItems = document.querySelectorAll('.sidebar-item');
+
+        // State variables
+        let currentTheme = 'dark';
+        let sidebarOpen = false;
+        let currentVideo = null;
+        let currentPage = 'home';
+        let socket = null;
+        let liveUsers = 5;
+
+        // Initialize
+        function init() {
+            // Simulate loading time
+            setTimeout(() => {
+                loadingScreen.classList.add('hidden');
+                loadVideos(videoData);
+                setupEventListeners();
+                initSocketConnection();
+                updateLiveIndicator();
+            }, 1500);
+
+            // Load theme from localStorage
+            const savedTheme = localStorage.getItem('monotube-theme');
+            if (savedTheme) {
+                currentTheme = savedTheme;
+                document.body.setAttribute('data-theme', currentTheme);
+                updateThemeIcon();
+            }
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            themeToggle.addEventListener('click', toggleTheme);
+            sidebarToggle.addEventListener('click', toggleSidebar);
+            searchBtn.addEventListener('click', performSearch);
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') performSearch();
+            });
+            closePlayer.addEventListener('click', closeVideoPlayer);
+            playPauseBtn.addEventListener('click', togglePlayPause);
+            volumeBtn.addEventListener('click', toggleMute);
+            fullscreenBtn.addEventListener('click', toggleFullscreen);
+            likeBtn.addEventListener('click', toggleLike);
+            
+            // Video time update
+            mainVideo.addEventListener('timeupdate', updateVideoTime);
+            mainVideo.addEventListener('loadedmetadata', () => {
+                durationEl.textContent = formatTime(mainVideo.duration);
+            });
+            
+            // Sidebar item clicks
+            sidebarItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    const page = item.getAttribute('data-page');
+                    changePage(page);
+                    if (window.innerWidth < 768) {
+                        toggleSidebar();
+                    }
+                });
+            });
+            
+            // Click outside sidebar to close on mobile
+            document.addEventListener('click', (e) => {
+                if (window.innerWidth < 768 && sidebarOpen && 
+                    !sidebar.contains(e.target) && 
+                    !sidebarToggle.contains(e.target)) {
+                    toggleSidebar();
+                }
+            });
+        }
+
+        // Initialize Socket.io connection
+        function initSocketConnection() {
+            // In a real application, you would connect to your Socket.io server
+            // For this demo, we'll simulate socket behavior
+            
+            // Simulate receiving live user count updates
+            setInterval(() => {
+                liveUsers += Math.floor(Math.random() * 3) - 1;
+                if (liveUsers < 1) liveUsers = 1;
+                if (liveUsers > 20) liveUsers = 20;
+                updateLiveIndicator();
+            }, 5000);
+            
+            // Simulate receiving notifications
+            setInterval(() => {
+                const messages = [
+                    "User123 menyukai video Anda",
+                    "Video baru tersedia: 'Web Development Trends 2024'",
+                    "5 orang sedang menonton video yang sama"
+                ];
+                const randomMsg = messages[Math.floor(Math.random() * messages.length)];
+                showNotification(randomMsg);
+            }, 15000);
+        }
+
+        // Toggle theme
+        function toggleTheme() {
+            currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.body.setAttribute('data-theme', currentTheme);
+            localStorage.setItem('monotube-theme', currentTheme);
+            updateThemeIcon();
+            showNotification(`Tema diubah ke ${currentTheme === 'dark' ? 'gelap' : 'terang'}`);
+        }
+
+        // Update theme icon
+        function updateThemeIcon() {
+            const icon = themeToggle.querySelector('i');
+            icon.className = currentTheme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+        }
+
+        // Toggle sidebar
+        function toggleSidebar() {
+            sidebarOpen = !sidebarOpen;
+            sidebar.classList.toggle('open');
+            mainContent.classList.toggle('sidebar-open');
+            
+            // Animate sidebar toggle icon
+            const icon = sidebarToggle.querySelector('i');
+            if (sidebarOpen) {
+                icon.className = 'fas fa-times';
+            } else {
+                icon.className = 'fas fa-bars';
+            }
+        }
+
+        // Change page
+        function changePage(page) {
+            currentPage = page;
+            
+            // Update page title
+            const titles = {
+                home: 'Video Terpopuler',
+                trending: 'Trending Hari Ini',
+                subscriptions: 'Video Langganan',
+                history: 'Riwayat Tontonan',
+                liked: 'Video Disukai',
+                playlists: 'Playlist Anda',
+                settings: 'Pengaturan'
+            };
+            
+            pageTitle.textContent = titles[page] || 'Monotube';
+            
+            // Update active sidebar item
+            sidebarItems.forEach(item => {
+                if (item.getAttribute('data-page') === page) {
+                    item.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                } else {
+                    item.style.backgroundColor = 'transparent';
+                }
+            });
+            
+            // Load appropriate videos
+            if (page === 'trending') {
+                loadVideos(trendingVideos);
+            } else if (page === 'home') {
+                loadVideos(videoData);
+            } else {
+                // For other pages, show a subset
+                loadVideos(videoData.slice(0, 3));
+            }
+            
+            showNotification(`Halaman ${titles[page]} dimuat`);
+        }
+
+        // Perform search
+        function performSearch() {
+            const query = searchInput.value.trim();
+            if (query) {
+                // Filter videos based on search query
+                const filteredVideos = videoData.filter(video => 
+                    video.title.toLowerCase().includes(query.toLowerCase())
+                );
+                
+                if (filteredVideos.length > 0) {
+                    loadVideos(filteredVideos);
+                    pageTitle.textContent = `Hasil pencarian: "${query}"`;
+                    showNotification(`Ditemukan ${filteredVideos.length} video untuk "${query}"`);
+                } else {
+                    // Show no results
+                    videoGrid.innerHTML = `
+                        <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+                            <i class="fas fa-search" style="font-size: 3rem; margin-bottom: 20px; color: var(--accent-color);"></i>
+                            <h3>Tidak ada hasil untuk "${query}"</h3>
+                            <p>Coba dengan kata kunci yang berbeda</p>
+                        </div>
+                    `;
+                    pageTitle.textContent = `Hasil pencarian: "${query}"`;
+                    showNotification(`Tidak ada hasil untuk "${query}"`);
+                }
+                
+                searchInput.value = '';
+            }
+        }
+
+        // Load videos to grid
+        function loadVideos(videos) {
+            videoGrid.innerHTML = '';
+            
+            videos.forEach(video => {
+                const videoCard = document.createElement('div');
+                videoCard.className = 'video-card';
+                videoCard.setAttribute('data-id', video.id);
+                
+                // Icon for thumbnail based on video type
+                const thumbnailIcons = {
+                    code: 'fas fa-code',
+                    css: 'fab fa-css3-alt',
+                    nodejs: 'fab fa-node-js',
+                    responsive: 'fas fa-mobile-alt',
+                    optimize: 'fas fa-tachometer-alt',
+                    socket: 'fas fa-bolt'
+                };
+                
+                videoCard.innerHTML = `
+                    <div class="video-thumbnail">
+                        <i class="${thumbnailIcons[video.thumbnail] || 'fas fa-film'}"></i>
+                    </div>
+                    <div class="video-info">
+                        <h3 class="video-title">${video.title}</h3>
+                        <div class="video-meta">
+                            <span>${video.views} views</span>
+                            <span>${video.uploadDate}</span>
+                        </div>
+                    </div>
+                `;
+                
+                videoCard.addEventListener('click', () => playVideo(video));
+                videoGrid.appendChild(videoCard);
+            });
+        }
+
+        // Play video
+        function playVideo(video) {
+            currentVideo = video;
+            mainVideo.src = video.videoUrl;
+            videoPlayerTitle.textContent = video.title;
+            
+            // Update like button
+            const likeIcon = likeBtn.querySelector('i');
+            likeIcon.className = video.liked ? 'fas fa-thumbs-up' : 'far fa-thumbs-up';
+            
+            videoPlayerContainer.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            
+            // Simulate live users watching this video
+            liveUsers = 5 + Math.floor(Math.random() * 10);
+            updateLiveIndicator();
+            
+            showNotification(`Memutar: ${video.title}`);
+        }
+
+        // Close video player
+        function closeVideoPlayer() {
+            videoPlayerContainer.classList.remove('active');
+            mainVideo.pause();
+            document.body.style.overflow = 'auto';
+            
+            // Reset play button icon
+            const playIcon = playPauseBtn.querySelector('i');
+            playIcon.className = 'fas fa-pause';
+        }
+
+        // Toggle play/pause
+        function togglePlayPause() {
+            const icon = playPauseBtn.querySelector('i');
+            if (mainVideo.paused) {
+                mainVideo.play();
+                icon.className = 'fas fa-pause';
+            } else {
+                mainVideo.pause();
+                icon.className = 'fas fa-play';
+            }
+        }
+
+        // Toggle mute
+        function toggleMute() {
+            const icon = volumeBtn.querySelector('i');
+            if (mainVideo.muted) {
+                mainVideo.muted = false;
+                icon.className = 'fas fa-volume-up';
+            } else {
+                mainVideo.muted = true;
+                icon.className = 'fas fa-volume-mute';
+            }
+        }
+
+        // Toggle fullscreen
+        function toggleFullscreen() {
+            const player = document.querySelector('.video-player');
+            
+            if (!document.fullscreenElement) {
+                if (player.requestFullscreen) {
+                    player.requestFullscreen();
+                } else if (player.webkitRequestFullscreen) {
+                    player.webkitRequestFullscreen();
+                } else if (player.msRequestFullscreen) {
+                    player.msRequestFullscreen();
+                }
+                
+                const icon = fullscreenBtn.querySelector('i');
+                icon.className = 'fas fa-compress';
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+                
+                const icon = fullscreenBtn.querySelector('i');
+                icon.className = 'fas fa-expand';
+            }
+        }
+
+        // Toggle like
+        function toggleLike() {
+            if (currentVideo) {
+                const icon = likeBtn.querySelector('i');
+                if (icon.classList.contains('far')) {
+                    icon.className = 'fas fa-thumbs-up';
+                    currentVideo.likes++;
+                    currentVideo.liked = true;
+                    showNotification(`Anda menyukai "${currentVideo.title}"`);
+                } else {
+                    icon.className = 'far fa-thumbs-up';
+                    currentVideo.likes--;
+                    currentVideo.liked = false;
+                    showNotification(`Batal menyukai "${currentVideo.title}"`);
+                }
+            }
+        }
+
+        // Update video time display
+        function updateVideoTime() {
+            currentTimeEl.textContent = formatTime(mainVideo.currentTime);
+        }
+
+        // Format time (seconds to mm:ss)
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        // Update live indicator
+        function updateLiveIndicator() {
+            const liveText = liveIndicator.querySelector('span');
+            liveText.textContent = `Live: ${liveUsers} users watching`;
+        }
+
+        // Show notification
+        function showNotification(message) {
+            notification.textContent = message;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
