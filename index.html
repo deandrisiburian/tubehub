@@ -726,12 +726,6 @@
             // Update page title
             const titles = {
                 home: 'Video Terpopuler',
-                trending: 'Trending Hari Ini',
-                subscriptions: 'Video Langganan',
-                history: 'Riwayat Tontonan',
-                liked: 'Video Disukai',
-                playlists: 'Playlist Anda',
-                settings: 'Pengaturan'
             };
             
             pageTitle.textContent = titles[page] || 'Monotube';
@@ -813,10 +807,6 @@
                     </div>
                     <div class="video-info">
                         <h3 class="video-title">${video.title}</h3>
-                        <div class="video-meta">
-                            <span>${video.views} views</span>
-                            <span>${video.uploadDate}</span>
-                        </div>
                     </div>
                 `;
                 
